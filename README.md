@@ -16,7 +16,7 @@ this case I need to mention:
 - [**Wikipedia**](hhttps://www.wikipedia.org/): the place from I learn how to implement an algorithm to measure the
 Levenshtein's distance.  
 
-Visit **azarte** for more information at [azarte.gitlab.io](https://azarte.gitlab.io/).  
+Visit **azarte** for more information at [azarte.gitlab.io](https://azarte.gitlab.io/).  a
 
 Feel free to contact me by [mail](mailto:rodrigovalla@protonmail.ch) or reach me in
 [telegram](https://t.me/rvalla) or [mastodon](https://fosstodon.org/@rvalla).
