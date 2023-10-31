@@ -1,7 +1,4 @@
 class Levenshtein():
-
-    def __init__(self):
-        words = 0
     
     #Measuring Levenshtein distance dinamically...
     #https://en.wikipedia.org/wiki/Levenshtein_distance#Iterative_with_full_matrix
