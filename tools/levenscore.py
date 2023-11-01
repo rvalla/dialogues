@@ -12,10 +12,10 @@ class LevenScore(m21Score):
 		self.lv = Levenshtein()
 		self.total_duration = 0
 		self.mode = mode
+		self.last_note = 0
 		self.notes_set = notes_set
 		self.t_unit = t_unit
 		self.t_measure = t_measure
-		self.t_set = int(self.t_measure / self.t_unit)
 		self.midi_offset = offs
 		self.voice_offset = v_offs
 
@@ -23,8 +23,10 @@ class LevenScore(m21Score):
 	def add_cycle(self, text):
 		if self.mode == "chords":
 			self.add_chords(text)
+		elif self.mode == "melody":
+			self.add_melody(text)
 
-	#functions to create rwith chords mode...
+	#functions to create with chords mode...
 	def add_chords(self, text):
 		words = text.split(" ")
 		self.add_chord(words[0])
@@ -48,6 +50,35 @@ class LevenScore(m21Score):
 		self.total_duration += duration
 		for p in range(len(self.parts)):
 			self.parts[p].append(self.create_note(-1, duration))
+	
+	#functions to create with melody mode...
+	def add_melody(self, text):
+		words = text.split(" ")
+		for p in range(len(self.parts)):
+			self.last_note = rd.choice(self.notes_set)
+			self.add_melody_note(p, words[0], 0, self.melody_direction(words[0], words[1]))
+			for w in range(1, len(words)):
+				d = self.lv.distance(words[w-1], words[w])
+				self.add_melody_note(p, words[w], d, self.melody_direction(words[w-1], words[w]))
+		self.fill_last_measure()
+	
+	def add_melody_note(self, part, word, d, direction):
+		duration = len(word) * self.t_unit
+		self.last_note = self.last_note + d * direction
+		pitch = self.last_note + self.midi_offset + self.voice_offset * part
+		note = self.create_note(pitch, duration)
+		if part == 0:
+			self.total_duration += duration
+			note.addLyric(word)
+		self.parts[part].append(note)
+
+	def melody_direction(self, word_a, word_b):
+		direction = 1
+		if len(word_b) < len(word_a):
+			direction = -1
+		elif len(word_b) == len(word_a):
+			direction = rd.choice([-1,1])
+		return direction
 
 	#setting mode...
 	def set_mode(self, mode):

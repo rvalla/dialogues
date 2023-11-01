@@ -16,7 +16,7 @@ composer = None
 key = None
 t_sig = None
 parts = None
-mode = None #chords, counterpoint, choral
+mode = None #chords, melody, counterpoint, choral
 notes_set = None
 t_unit = None
 t_measure = None
@@ -43,7 +43,7 @@ def set_configuration():
 	print("Tell me the number of parts in this composition:", end="\n")
 	global parts
 	parts = int(input())
-	print("Select working mode (chords, rhythm, counterpoint)", end="\n")
+	print("Select working mode (chords, melody, counterpoint)", end="\n")
 	global mode
 	mode = input()
 	print("I need a notes set now. Send me numbers separated with spaces.", end="\n")
