@@ -45,7 +45,7 @@ class LevenScore(m21Score):
 
 	def add_chord(self, word):
 		self.total_duration += self.t_unit
-		for p in range(len(self.parts)):
+		for p in range(self.parts_count):
 			pitch = self.notes_set[p%len(self.notes_set)] + self.midi_offset + self.voice_offset * p
 			note = self.create_note(pitch, self.t_unit)
 			if p == 0:
@@ -54,13 +54,13 @@ class LevenScore(m21Score):
 	
 	def add_rest_chord(self, duration):
 		self.total_duration += duration
-		for p in range(len(self.parts)):
+		for p in range(self.parts_count):
 			self.parts[p].append(self.create_note(-1, duration))
 	
 	#functions to create with melody mode...
 	def add_melody(self, text):
 		words = text.split(" ")
-		for p in range(len(self.parts)):
+		for p in range(self.parts_count):
 			self.last_note = rd.choice(self.notes_set)
 			self.add_melody_note(p, words[0], 0, 1)
 			for w in range(1, len(words)):
@@ -89,7 +89,7 @@ class LevenScore(m21Score):
 	#functions to create with pulse mode...
 	def add_pulse(self, text):
 		words = text.split(" ")
-		for p in range(len(self.parts)):
+		for p in range(self.parts_count):
 			self.last_note = rd.choice(self.notes_set)
 			self.add_pulse_note(p, words[0], 0, self.melody_direction(words[0], words[1]))
 			for w in range(1, len(words)):
@@ -120,7 +120,7 @@ class LevenScore(m21Score):
 		for w in range(len(words)):
 			c_words = []
 			c_distances = [0]
-			for p in range(len(self.parts)):
+			for p in range(self.parts_count):
 				c_words.append(words[(w + p)%len(words)])
 			for c_w in range(1, len(c_words)):
 				c_distances.append(self.lv.distance(c_words[0], c_words[c_w]))
@@ -128,7 +128,7 @@ class LevenScore(m21Score):
 
 	def add_choral_chord(self, words, distances, n):
 		self.total_duration += self.t_unit
-		for p in range(len(self.parts)):
+		for p in range(self.parts_count):
 			pitch = n - distances[p] + self.midi_offset + self.voice_offset * p
 			note = self.create_note(pitch, self.t_unit)
 			note.addLyric(words[p])
@@ -140,13 +140,20 @@ class LevenScore(m21Score):
 	#functions to create with imitation mode...
 	def add_imitation(self, text):
 		words = text.split(" ")
-		for p in range(len(self.parts)):
+		offsets = self.get_offsets(self.parts_count, len(words))
+		for p in range(self.parts_count):
 			self.last_note = rd.choice(self.notes_set)
-			self.add_melody_note(p, words[p], 0, 1)
+			self.add_melody_note(p, words[offsets[p]%len(words)], 0, 1)
 			for w in range(1, len(words)):
-				d = self.lv.distance(words[(w + p - 1)%len(words)], words[(w + p)%len(words)])
-				self.add_melody_note(p, words[w], d, self.melody_direction(words[w-1], words[w]))
+				d = self.lv.distance(words[(w + offsets[p] - 1)%len(words)], words[(w + offsets[p])%len(words)])
+				self.add_melody_note(p, words[(w + offsets[p])%len(words)], d, self.melody_direction(words[(w + offsets[p] - 1)%len(words)], words[(w + offsets[p])%len(words)]))
 		self.fill_last_measure()
+	
+	def get_offsets(self, parts, size):
+		offsets = [0]
+		for p in range(1,parts):
+			offsets.append(rd.choice(range(size)))
+		return offsets
 
 	#setting mode...
 	def set_mode(self, mode):
@@ -180,7 +187,7 @@ class LevenScore(m21Score):
 	#printing information...
 	def __str__(self):
 		return "-- Hi, I am a tool to create music from text..." + "\n" \
-				+ "-- I have " + str(len(self.parts)) + " parts" + "\n" \
+				+ "-- I have " + str(self.parts_count) + " parts" + "\n" \
 				+ "-- And " + self.get_notes_count() + " notes" + "\n" \
 				+ "-- I think there is a chance you like me..."
 
