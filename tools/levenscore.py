@@ -25,6 +25,12 @@ class LevenScore(m21Score):
 			self.add_chords(text)
 		elif self.mode == "melody":
 			self.add_melody(text)
+		elif self.mode == "pulse":
+			self.add_pulse(text)
+		elif self.mode == "choral":
+			self.add_choral(text)
+		elif self.mode == "imitation":
+			self.add_imitation(text)
 
 	#functions to create with chords mode...
 	def add_chords(self, text):
@@ -56,7 +62,7 @@ class LevenScore(m21Score):
 		words = text.split(" ")
 		for p in range(len(self.parts)):
 			self.last_note = rd.choice(self.notes_set)
-			self.add_melody_note(p, words[0], 0, self.melody_direction(words[0], words[1]))
+			self.add_melody_note(p, words[0], 0, 1)
 			for w in range(1, len(words)):
 				d = self.lv.distance(words[w-1], words[w])
 				self.add_melody_note(p, words[w], d, self.melody_direction(words[w-1], words[w]))
@@ -79,14 +85,87 @@ class LevenScore(m21Score):
 		elif len(word_b) == len(word_a):
 			direction = rd.choice([-1,1])
 		return direction
+	
+	#functions to create with pulse mode...
+	def add_pulse(self, text):
+		words = text.split(" ")
+		for p in range(len(self.parts)):
+			self.last_note = rd.choice(self.notes_set)
+			self.add_pulse_note(p, words[0], 0, self.melody_direction(words[0], words[1]))
+			for w in range(1, len(words)):
+				d = self.lv.distance(words[w-1], words[w])
+				self.add_pulse_note(p, words[w], d, self.pulse_direction(words[w-1], words[w]))
+		self.fill_last_measure()
+	
+	def add_pulse_note(self, part, word, d, direction):
+		self.last_note = self.last_note + d * direction
+		pitch = self.last_note + self.midi_offset + self.voice_offset * part
+		note = self.create_note(pitch, self.t_unit)
+		if part == 0:
+			self.total_duration += self.t_unit
+			note.addLyric(word)
+		self.parts[part].append(note)
+
+	def pulse_direction(self, word_a, word_b):
+		direction = 1
+		if len(word_b) < len(word_a):
+			direction = -1
+		elif len(word_b) == len(word_a):
+			direction = rd.choice([-1,1])
+		return direction
+	
+	#functions to create with choral mode...
+	def add_choral(self, text):
+		words = text.split(" ")
+		for w in range(len(words)):
+			c_words = []
+			c_distances = [0]
+			for p in range(len(self.parts)):
+				c_words.append(words[(w + p)%len(words)])
+			for c_w in range(1, len(c_words)):
+				c_distances.append(self.lv.distance(c_words[0], c_words[c_w]))
+			self.add_choral_chord(c_words, c_distances, self.get_upper_voice(w))
+
+	def add_choral_chord(self, words, distances, n):
+		self.total_duration += self.t_unit
+		for p in range(len(self.parts)):
+			pitch = n - distances[p] + self.midi_offset + self.voice_offset * p
+			note = self.create_note(pitch, self.t_unit)
+			note.addLyric(words[p])
+			self.parts[p].append(note)
+	
+	def get_upper_voice(self, position):
+		return self.notes_set[position%len(self.notes_set)]
+
+	#functions to create with imitation mode...
+	def add_imitation(self, text):
+		words = text.split(" ")
+		for p in range(len(self.parts)):
+			self.last_note = rd.choice(self.notes_set)
+			self.add_melody_note(p, words[p], 0, 1)
+			for w in range(1, len(words)):
+				d = self.lv.distance(words[(w + p - 1)%len(words)], words[(w + p)%len(words)])
+				self.add_melody_note(p, words[w], d, self.melody_direction(words[w-1], words[w]))
+		self.fill_last_measure()
 
 	#setting mode...
 	def set_mode(self, mode):
 		self.mode = mode
+	
+	#setting t_unit...
+	def set_mode(self, unit):
+		self.t_unit = unit
 
 	#changing notes...
 	def new_notes_set(self, notes):
 		self.notes_set = notes
+	
+	def notes_set_to_str(self):
+		s = ""
+		for n in self.notes_set:
+			s += str(n)
+			s += " "
+		return s
 
 	#filling last measures...
 	def fill_last_measure(self):
