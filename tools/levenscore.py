@@ -10,7 +10,7 @@ class LevenScore(m21Score):
 	def __init__(self, title, composer, key, t_sig, parts, mode, notes_set, t_unit, t_measure, offs, v_offs):
 		m21Score.__init__(self, title, composer, key, t_sig, parts)
 		self.lv = Levenshtein()
-		self.total_duration = 0
+		self.total_duration = [0 for p in range(parts)]
 		self.mode = mode
 		self.last_note = 0
 		self.notes_set = notes_set
@@ -24,13 +24,15 @@ class LevenScore(m21Score):
 		if self.mode == "chords":
 			self.add_chords(text)
 		elif self.mode == "melody":
-			self.add_melody(text)
+			self.add_melodies(text)
 		elif self.mode == "pulse":
 			self.add_pulse(text)
 		elif self.mode == "choral":
 			self.add_choral(text)
 		elif self.mode == "imitation":
 			self.add_imitation(text)
+		elif self.mode == "crayfish":
+			self.add_crayfish(text)
 
 	#functions to create with chords mode...
 	def add_chords(self, text):
@@ -44,7 +46,7 @@ class LevenScore(m21Score):
 			self.add_chord(words[w])
 
 	def add_chord(self, word):
-		self.total_duration += self.t_unit
+		self.count_durations(self.t_unit)
 		for p in range(self.parts_count):
 			pitch = self.notes_set[p%len(self.notes_set)] + self.midi_offset + self.voice_offset * p
 			note = self.create_note(pitch, self.t_unit)
@@ -53,12 +55,16 @@ class LevenScore(m21Score):
 			self.parts[p].append(note)
 	
 	def add_rest_chord(self, duration):
-		self.total_duration += duration
+		self.count_durations(duration)
 		for p in range(self.parts_count):
 			self.parts[p].append(self.create_note(-1, duration))
 	
+	def add_rest_note(self, part, duration):
+		self.count_duration(part, duration)
+		self.parts[part].append(self.create_note(-1, duration))
+	
 	#functions to create with melody mode...
-	def add_melody(self, text):
+	def add_melodies(self, text):
 		words = text.split(" ")
 		for p in range(self.parts_count):
 			self.last_note = rd.choice(self.notes_set)
@@ -66,15 +72,15 @@ class LevenScore(m21Score):
 			for w in range(1, len(words)):
 				d = self.lv.distance(words[w-1], words[w])
 				self.add_melody_note(p, words[w], d, self.melody_direction(words[w-1], words[w]))
-		self.fill_last_measure()
+		self.fill_last_measures()
 	
 	def add_melody_note(self, part, word, d, direction):
 		duration = len(word) * self.t_unit
+		self.count_duration(part, duration)
 		self.last_note = self.last_note + d * direction
 		pitch = self.last_note + self.midi_offset + self.voice_offset * part
 		note = self.create_note(pitch, duration)
 		if part == 0:
-			self.total_duration += duration
 			note.addLyric(word)
 		self.parts[part].append(note)
 
@@ -86,6 +92,12 @@ class LevenScore(m21Score):
 			direction = rd.choice([-1,1])
 		return direction
 	
+	def melody_fixed_direction(self, word_a, word_b):
+		direction = 1
+		if len(word_b) < len(word_a):
+			direction = -1
+		return direction
+	
 	#functions to create with pulse mode...
 	def add_pulse(self, text):
 		words = text.split(" ")
@@ -94,25 +106,17 @@ class LevenScore(m21Score):
 			self.add_pulse_note(p, words[0], 0, self.melody_direction(words[0], words[1]))
 			for w in range(1, len(words)):
 				d = self.lv.distance(words[w-1], words[w])
-				self.add_pulse_note(p, words[w], d, self.pulse_direction(words[w-1], words[w]))
-		self.fill_last_measure()
+				self.add_pulse_note(p, words[w], d, self.melody_direction(words[w-1], words[w]))
+		self.fill_last_measures()
 	
 	def add_pulse_note(self, part, word, d, direction):
 		self.last_note = self.last_note + d * direction
+		self.count_duration(part, self.t_unit)
 		pitch = self.last_note + self.midi_offset + self.voice_offset * part
 		note = self.create_note(pitch, self.t_unit)
 		if part == 0:
-			self.total_duration += self.t_unit
 			note.addLyric(word)
 		self.parts[part].append(note)
-
-	def pulse_direction(self, word_a, word_b):
-		direction = 1
-		if len(word_b) < len(word_a):
-			direction = -1
-		elif len(word_b) == len(word_a):
-			direction = rd.choice([-1,1])
-		return direction
 	
 	#functions to create with choral mode...
 	def add_choral(self, text):
@@ -127,7 +131,7 @@ class LevenScore(m21Score):
 			self.add_choral_chord(c_words, c_distances, self.get_upper_voice(w))
 
 	def add_choral_chord(self, words, distances, n):
-		self.total_duration += self.t_unit
+		self.count_durations(self.t_unit)
 		for p in range(self.parts_count):
 			pitch = n - distances[p] + self.midi_offset + self.voice_offset * p
 			note = self.create_note(pitch, self.t_unit)
@@ -147,20 +151,37 @@ class LevenScore(m21Score):
 			for w in range(1, len(words)):
 				d = self.lv.distance(words[(w + offsets[p] - 1)%len(words)], words[(w + offsets[p])%len(words)])
 				self.add_melody_note(p, words[(w + offsets[p])%len(words)], d, self.melody_direction(words[(w + offsets[p] - 1)%len(words)], words[(w + offsets[p])%len(words)]))
-		self.fill_last_measure()
+		self.fill_last_measures()
 	
 	def get_offsets(self, parts, size):
 		offsets = [0]
 		for p in range(1,parts):
 			offsets.append(rd.choice(range(size)))
 		return offsets
+	
+	#functions to create with crayfish mode...
+	def add_crayfish(self, text):
+		words = text.split(" ")
+		for p in range(self.parts_count):
+			if p%2 == 0:
+				self.last_note = self.notes_set[0]
+				self.add_melody_note(p, words[0], 0, 1)
+				for w in range(1, len(words)):
+					d = self.lv.distance(words[w-1], words[w])
+					self.add_melody_note(p, words[w], d, self.melody_fixed_direction(words[w-1], words[w]))
+			else:
+				self.add_melody_note(p, words[len(words)-1], 0, 1)
+				for w in range(len(words)-2, -1, -1):
+					d = self.lv.distance(words[w+1], words[w])
+					self.add_melody_note(p, words[w], d, self.melody_fixed_direction(words[w+1], words[w]))
+		self.fill_last_measures()
 
 	#setting mode...
 	def set_mode(self, mode):
 		self.mode = mode
 	
 	#setting t_unit...
-	def set_mode(self, unit):
+	def set_t_unit(self, unit):
 		self.t_unit = unit
 
 	#changing notes...
@@ -173,16 +194,28 @@ class LevenScore(m21Score):
 			s += str(n)
 			s += " "
 		return s
+	
+	#counting total durations en each part...
+	def count_durations(self, duration):
+		for p in range(self.parts_count):
+			self.total_duration[p] += duration
+
+	def count_duration(self, part, duration):
+		self.total_duration[part] += duration
 
 	#filling last measures...
-	def fill_last_measure(self):
+	def fill_last_measures(self):
+		for p in range(self.parts_count):
+			self.fill_last_measure(p)
+
+	def fill_last_measure(self, part):
 		f = 1
 		if self.t_unit < 1:
 			f = 1 / self.t_unit
 		m = self.t_measure * f
-		r = (self.total_duration * f)%m
+		r = (self.total_duration[part] * f)%m
 		if r > 0:
-			self.add_rest_chord((m-r)/f)
+			self.add_rest_note(part, (m-r)/f)
 
 	#printing information...
 	def __str__(self):

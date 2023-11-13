@@ -16,7 +16,7 @@ composer = None
 key = None
 t_sig = None
 parts = None
-mode = None #chords, melody, pulse, choral
+mode = None #chords, melody, pulse, choral, crayfish
 notes_set = None
 t_unit = None
 t_measure = None
@@ -43,7 +43,7 @@ def set_configuration():
 	print("Tell me the number of parts in this composition:", end="\n")
 	global parts
 	parts = int(input())
-	print("Select working mode (chords, melody, pulse, choral, imitation)", end="\n")
+	print("Select working mode (chords, melody, pulse, choral, imitation, crayfish)", end="\n")
 	global mode
 	mode = input()
 	print("I need a notes set now. Send me numbers separated with spaces.", end="\n")
@@ -83,10 +83,10 @@ def writing():
 			elif data == "_t":
 				print("Select a new minumn duration:", end="\n")
 				unit = float(input())
-				l.new_notes_set(notes_set)
-				print("I am working with " + l.notes_set_to_str() + "now.", end="\n\n")
+				l.set_t_unit(unit)
+				print("I am working with " + str(l.t_unit) + "now.", end="\n\n")
 			elif data == "_s":
-				l.fill_last_measure()
+				l.fill_last_measures()
 				l.save_score("output/", filename, "xml")
 			elif data == "_q":
 				break
